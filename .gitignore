@@ -2,3 +2,7 @@
 .env.*
 venv/
 staticfiles/
+__pycache__/
+.py[cod]*.pyc
+*.pyo
+*.pyd
