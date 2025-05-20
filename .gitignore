@@ -1,24 +1,70 @@
+# =========================
 # Python
-__pycache__/
+# =========================
+**/__pycache__/
 *.py[cod]
 *.pyo
 *.pyd
 *.so
-*.egg-info/
 *.egg
+*.egg-info/
 .python-version
 
+# =========================
 # Django
+# =========================
 db.sqlite3
 /media/
 /staticfiles/
 *.log
+*.pot
+*.pyc
+*.mo
+*.sqlite3
 
-# IDE
+# =========================
+# Compiled files & Caches
+# =========================
+*.DS_Store
+*.swp
+*.swo
+
+# =========================
+# IDEs & Editors
+# =========================
 .idea/
 .vscode/
 
-# Virtualenv
+# =========================
+# Virtual Environment
+# =========================
 .venv/
-
+venv/
+ENV/
+env/
+# Avoid committing local DBs
 db/
+
+# =========================
+# Celery, Redis, etc
+# =========================
+celerybeat-schedule
+celerybeat.pid
+
+# =========================
+# Byte-compiled & cache
+# =========================
+config/__pycache__/
+config/settings/__pycache__/
+
+# =========================
+# System Files
+# =========================
+Thumbs.db
+ehthumbs.db
+
+# =========================
+# DB Files
+# =========================
+**/migrations/*.py
+!**/migrations/__init__.py
