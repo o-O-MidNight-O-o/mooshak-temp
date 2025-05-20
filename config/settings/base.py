@@ -29,7 +29,7 @@ CELERY_TIMEZONE = 'UTC'
 # Image Processing Settings
 PROFILE_PICTURE_WIDTH = 150
 PROFILE_PICTURE_HEIGHT = 150
-BANNER_IMAGE_WIDTH = 1200
+BANNER_IMAGE_WIDTH = 1400
 BANNER_IMAGE_HEIGHT = 400
 IMAGE_RESIZE_QUALITY = 85  # For JPEG, 0-100
 
@@ -65,6 +65,8 @@ INSTALLED_APPS = [
     'notifications',
     'reports',
     'collaborations',
+    'chat',
+    'utils',
 ]
 
 # Middleware settings

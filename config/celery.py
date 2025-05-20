@@ -5,7 +5,7 @@ from django.conf import settings # Import Django settings
 
 # Set the default Django settings module for the 'celery' program.
 # This MUST come before creating the Celery app instance.
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings.settings')
 redis_url = os.environ.get('REDIS_URL', 'redis://127.0.0.1:6379/0')
 app = Celery('mooshak',broker=redis_url, backend=redis_url) # 'mooshak' or your project name
 

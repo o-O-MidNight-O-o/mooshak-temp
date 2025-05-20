@@ -1,7 +1,8 @@
 from rest_framework import serializers
+from rest_framework.exceptions import ValidationError
 from django.contrib.auth.models import User
 from .models import UserProfile
-
+import json
 
 class RegisterSerializer(serializers.Serializer):
     username = serializers.CharField()
@@ -42,35 +43,69 @@ class UserProfileSerializer(serializers.ModelSerializer):
     user = UserSerializer(read_only=True)
     profile_picture = serializers.ImageField(required=False, allow_null=True)
     banner_image = serializers.ImageField(required=False, allow_null=True)
-    user_type = serializers.ChoiceField(choices=[('user', 'User'), ('brand', 'Brand'), ('influencer', 'Influencer')], required=False)
+    # Accept a list of dicts for social_media_links
+    social_media_links = serializers.ListField(
+        child=serializers.DictField(), required=False
+    )
 
     class Meta:
         model = UserProfile
         fields = [
-            'id',
-            'user',
-            'user_type',  # Add user_type field here
+            'id', 'user', 'user_type', 'user_type_verified',
             'first_name', 'last_name', 'phone', 'city', 'country',
-            'profile_picture', 'banner_image',
-            'social_media_links', 'open_to_work', 'can_receive_gifts',
-            'is_verified', 'created_at'
+            'profile_picture', 'banner_image', 'social_media_links',
+            'open_to_work', 'can_receive_gifts',
+            'company_name', 'brand_category', 'influencer_categories',
+            'referral_code', 'created_at', 'updated_at'
         ]
-        read_only_fields = ['id', 'user', 'is_verified', 'created_at']
+        read_only_fields = ['id', 'user', 'user_type_verified', 'created_at', 'updated_at']
+
+    def to_internal_value(self, data):
+        # Handle social_media_links as a JSON string if sent as form-data
+        sm_links = data.get('social_media_links')
+        if sm_links and isinstance(sm_links, str):
+            try:
+                data['social_media_links'] = json.loads(sm_links)
+            except Exception:
+                raise serializers.ValidationError({'social_media_links': 'Invalid JSON format.'})
+        return super().to_internal_value(data)
+
+    def validate(self, data):
+        user_type = data.get('user_type', self.instance.user_type if self.instance else None)
+        if self.instance and not self.instance.user_type and 'user_type' in data:
+            self.instance.user_type = data['user_type']
+        if self.instance and self.instance.user_type and 'user_type' in data:
+            if data['user_type'] != self.instance.user_type:
+                raise ValidationError({'user_type': 'User type cannot be changed once set.'})
+
+        if user_type:
+            missing = []
+            for field in ['first_name', 'last_name', 'profile_picture', 'city', 'country', 'phone']:
+                if not (data.get(field) or (self.instance and getattr(self.instance, field))):
+                    missing.append(field)
+            # At least one social media link
+            social_links = data.get('social_media_links', self.instance.social_media_links if self.instance else [])
+            if not social_links or not isinstance(social_links, list) or not social_links:
+                missing.append('social_media_links')
+            # Brand-specific
+            if user_type == 'brand':
+                for field in ['company_name', 'brand_category']:
+                    if not (data.get(field) or (self.instance and getattr(self.instance, field))):
+                        missing.append(field)
+            # Influencer-specific
+            if user_type == 'influencer':
+                if not (data.get('influencer_categories') or (self.instance and getattr(self.instance, 'influencer_categories'))):
+                    missing.append('influencer_categories')
+            if missing:
+                raise ValidationError({f: 'This field is required.' for f in missing})
+
+        return data
 
     def update(self, instance, validated_data):
-        # Handle user_type field carefully
-        if not instance.user_type:  # If no user_type yet
-            new_user_type = validated_data.get('user_type')
-            if not new_user_type:
-                raise serializers.ValidationError({"user_type": "You must select a user_type (user, brand, or influencer)."})
-            instance.user_type = new_user_type
-        elif 'user_type' in validated_data:
-            # If user_type already exists, prevent changing it
-            validated_data.pop('user_type')
-
-        # Update other fields
+        social_media_links = validated_data.pop('social_media_links', None)
+        if social_media_links is not None:
+            instance.social_media_links = social_media_links
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
-        
         instance.save()
         return instance

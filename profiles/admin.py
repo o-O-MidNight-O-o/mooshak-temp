@@ -4,22 +4,18 @@ from .models import UserProfile
 @admin.register(UserProfile)
 class UserProfileAdmin(admin.ModelAdmin):
     list_display = (
-        'user', 'user_type', 'first_name', 'last_name', 'is_verified', 
-        'profile_picture_original', 'profile_picture', 'profile_picture_processing',
-        'banner_image_original', 'banner_image', 'banner_image_processing',
-        'updated_at'
+        'user', 'user_type', 'first_name', 'last_name', 'user_type_verified',
+        'profile_picture', 'banner_image', 'created_at'
     )
-    list_filter = ('user_type', 'is_verified', 'profile_picture_processing', 'banner_image_processing')
+    list_filter = ('user_type', 'user_type_verified')
     search_fields = ('user__username', 'first_name', 'last_name', 'user__email')
-    readonly_fields = ('created_at', 'updated_at', 'profile_picture', 'banner_image') # Resized images are system-generated
-
+    readonly_fields = ('created_at',)
     fieldsets = (
-        (None, {'fields': ('user', 'user_type', 'is_verified')}),
-        ('Personal Info', {'fields': ('first_name', 'last_name', 'company_name', 'city', 'country', 'phone')}),
-        ('Images', {'fields': (
-            'profile_picture_original', 'profile_picture', 'profile_picture_processing',
-            'banner_image_original', 'banner_image', 'banner_image_processing'
-        )}),
-        ('Social & Others', {'fields': ('social_media_links', 'referral_code', 'open_to_work', 'can_receive_gifts')}),
-        ('Timestamps', {'fields': ('created_at', 'updated_at')}),
+        (None, {'fields': ('user', 'user_type', 'user_type_verified')}),
+        ('Personal Info', {'fields': ('first_name', 'last_name', 'city', 'country', 'phone')}),
+        ('Brand Info', {'fields': ('company_name', 'brand_category')}),
+        ('Influencer Info', {'fields': ('influencer_categories', 'open_to_work', 'can_receive_gifts')}),
+        ('Images', {'fields': ('profile_picture', 'banner_image')}),
+        ('Social & Others', {'fields': ('social_media_links', 'referral_code')}),
+        ('Timestamps', {'fields': ('created_at',)}),
     )

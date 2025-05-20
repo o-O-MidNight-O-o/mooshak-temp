@@ -8,8 +8,7 @@ from rest_framework.permissions import IsAuthenticated
 from .models import UserProfile
 from .serializers import UserProfileSerializer, RegisterSerializer
 # from .permissions import IsSuperUserOrUserTypeBased
-from utils.emails import send_verification_email
-
+from core.tasks import send_verification_email
 from .serializers import RegisterSerializer
 
 @api_view(['POST'])
@@ -18,7 +17,7 @@ def register(request):
     if serializer.is_valid():
         user = serializer.save()
         domain = request.META['HTTP_HOST']
-        send_verification_email(user.id, domain)
+        send_verification_email.delay(user.id, domain)
         return Response({'message': 'User registered successfully. Please check your email.'}, status=status.HTTP_201_CREATED)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 

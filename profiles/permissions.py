@@ -1,18 +1,39 @@
 from rest_framework import permissions
 
-class IsSuperUserOrUserTypeBased(permissions.BasePermission):
+class IsEmailVerified(permissions.BasePermission):
     """
-    Custom permission to allow superusers and users with specific user_type to access their profile.
+    Allows access only to users with verified email.
     """
     def has_permission(self, request, view):
-        # Allow access to superusers
-        if request.user.is_superuser:
+        user = request.user
+        if not user or not user.is_authenticated:
+            return False
+        # Check if user has a profile and is_verified is True
+        if hasattr(user, 'profile') and getattr(user.profile, 'is_verified', False):
             return True
-
-        # Allow access to authenticated users with user types
-        if hasattr(request.user, 'profile'):
-            # Ensure user has a profile and check their user_type
-            if request.user.profile.user_type in ['user', 'brand', 'influencer']:
-                return True
-        
         return False
+
+class IsUserTypeVerified(permissions.BasePermission):
+    """
+    Allows access only to users with verified user_type (second-step verification).
+    """
+    def has_permission(self, request, view):
+        user = request.user
+        if not user or not user.is_authenticated:
+            return False
+        # Check if user_type is set and user_type_verified is True
+        if hasattr(user, 'profile'):
+            profile = user.profile
+            if profile.user_type and profile.user_type_verified:
+                return True
+        return False
+
+class IsSuperUserOrUserTypeVerified(permissions.BasePermission):
+    """
+    Allows access to superusers or users with verified user_type.
+    """
+    def has_permission(self, request, view):
+        user = request.user
+        if user.is_superuser:
+            return True
+        return IsUserTypeVerified().has_permission(request, view)
