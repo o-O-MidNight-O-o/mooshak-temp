@@ -39,14 +39,15 @@ class UserSerializer(serializers.ModelSerializer):
         model = User
         fields = ['id', 'username', 'email']
 
+class SocialMediaLinkSerializer(serializers.Serializer):
+    platform = serializers.CharField()
+    link = serializers.URLField()
+
 class UserProfileSerializer(serializers.ModelSerializer):
     user = UserSerializer(read_only=True)
     profile_picture = serializers.ImageField(required=False, allow_null=True)
     banner_image = serializers.ImageField(required=False, allow_null=True)
-    # Accept a list of dicts for social_media_links
-    social_media_links = serializers.ListField(
-        child=serializers.DictField(), required=False
-    )
+    social_media_links = SocialMediaLinkSerializer(many=True, required=False, allow_null=True)
 
     class Meta:
         model = UserProfile
@@ -61,19 +62,47 @@ class UserProfileSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'user', 'user_type_verified', 'created_at', 'updated_at']
 
     def to_internal_value(self, data):
-        # Handle social_media_links as a JSON string if sent as form-data
+        data = data.copy()
+        print("\nRAW INCOMING DATA:", data)
+
         sm_links = data.get('social_media_links')
-        if sm_links and isinstance(sm_links, str):
+        print("RAW social_media_links:", sm_links)
+
+        if isinstance(sm_links, str):
             try:
-                data['social_media_links'] = json.loads(sm_links)
-            except Exception:
-                raise serializers.ValidationError({'social_media_links': 'Invalid JSON format.'})
-        return super().to_internal_value(data)
+                parsed = json.loads(sm_links)
+                print("PARSED social_media_links:", parsed)
+                if not isinstance(parsed, list):
+                    raise serializers.ValidationError({
+                        'social_media_links': 'Must be a list.'
+                    })
+                data['social_media_links'] = parsed
+            except json.JSONDecodeError:
+                raise serializers.ValidationError({
+                    'social_media_links': 'Invalid JSON format'
+                })
+
+        result = super().to_internal_value(data)
+        if 'social_media_links' in data:
+            result['social_media_links'] = data['social_media_links']
+        return result
+
+
+
+    def validate_social_media_links(self, value):
+        if not isinstance(value, list):
+            raise serializers.ValidationError("Must be a list of social links.")
+        for item in value:
+            if 'platform' not in item or 'link' not in item:
+                raise serializers.ValidationError("Each item must have 'platform' and 'link'.")
+        return value
 
     def validate(self, data):
         user_type = data.get('user_type', self.instance.user_type if self.instance else None)
+
         if self.instance and not self.instance.user_type and 'user_type' in data:
             self.instance.user_type = data['user_type']
+
         if self.instance and self.instance.user_type and 'user_type' in data:
             if data['user_type'] != self.instance.user_type:
                 raise ValidationError({'user_type': 'User type cannot be changed once set.'})
@@ -83,19 +112,20 @@ class UserProfileSerializer(serializers.ModelSerializer):
             for field in ['first_name', 'last_name', 'profile_picture', 'city', 'country', 'phone']:
                 if not (data.get(field) or (self.instance and getattr(self.instance, field))):
                     missing.append(field)
-            # At least one social media link
+
             social_links = data.get('social_media_links', self.instance.social_media_links if self.instance else [])
             if not social_links or not isinstance(social_links, list) or not social_links:
                 missing.append('social_media_links')
-            # Brand-specific
+
             if user_type == 'brand':
                 for field in ['company_name', 'brand_category']:
                     if not (data.get(field) or (self.instance and getattr(self.instance, field))):
                         missing.append(field)
-            # Influencer-specific
+
             if user_type == 'influencer':
                 if not (data.get('influencer_categories') or (self.instance and getattr(self.instance, 'influencer_categories'))):
                     missing.append('influencer_categories')
+
             if missing:
                 raise ValidationError({f: 'This field is required.' for f in missing})
 
