@@ -60,13 +60,12 @@ INSTALLED_APPS = [
     'rest_framework',
     'core',
     'ads',
-    'profiles',
+    'profiles.apps.ProfilesConfig',
     'payments',
     'notifications',
     'reports',
     'collaborations',
     'chat',
-    'utils',
 ]
 
 # Middleware settings

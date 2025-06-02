@@ -7,7 +7,9 @@ import os
 import io
 from django.core.files.uploadedfile import InMemoryUploadedFile
 import redis
-r = redis.Redis.from_url(getattr(settings, "REDIS_URL", "redis://localhost:6379/0"))
+
+def get_redis_connection():
+    return redis.Redis.from_url(getattr(settings, "REDIS_URL", "redis://localhost:6379/0"))
 
 @shared_task
 def send_email_task(subject, message, recipient_list, from_email=None):
@@ -67,7 +69,6 @@ def resize_and_store_in_redis(profile_id, field_name, width, height):
         profile = UserProfile.objects.get(id=profile_id)
         image_field = getattr(profile, field_name)
         if not image_field:
-            print(f"[ERROR] No image found in field {field_name} for profile {profile_id}")
             return None
         image_path = image_field.path
 
@@ -79,21 +80,15 @@ def resize_and_store_in_redis(profile_id, field_name, width, height):
             ext = '.jpg'
 
         if base_name.endswith('_resized'):
-            print(f"[DEBUG] Image already resized, skipping: {image_path}")
             return image_path
-
-        print(f"[DEBUG] Starting resize task for {image_path}")
-        print(f"[DEBUG] Does original exist? {default_storage.exists(image_path)}")
-
+        r = get_redis_connection()
         original_image = default_storage.open(image_path, 'rb').read()
         r.set(image_path, original_image)
 
         image = Image.open(io.BytesIO(original_image))
-        print(f"[DEBUG] Original image size: {image.size}")
 
         # If already correct size, just rename and save
         if image.size == (width, height):
-            print(f"[DEBUG] Image already correct size, just renaming.")
             new_image_name = f"{base_name}_resized{ext}"
             upload_to = "profiles/"
             if field_name == "banner_image":
@@ -107,7 +102,6 @@ def resize_and_store_in_redis(profile_id, field_name, width, height):
             if default_storage.exists(image_path):
                 default_storage.delete(image_path)
             r.delete(image_path)
-            print(f"[DEBUG] Renamed image saved to {resized_image_path}")
             return resized_image_path
 
         # Otherwise, crop and resize as before
@@ -126,7 +120,6 @@ def resize_and_store_in_redis(profile_id, field_name, width, height):
 
         image = image.crop(box)
         image = image.resize((width, height), Image.Resampling.LANCZOS)
-        print(f"[DEBUG] Resized image size: {image.size}")
 
         new_image_name = f"{base_name}_resized{ext}"
         upload_to = "profiles/"
@@ -148,10 +141,8 @@ def resize_and_store_in_redis(profile_id, field_name, width, height):
         if default_storage.exists(image_path):
             default_storage.delete(image_path)
         r.delete(image_path)
-        print(f"[DEBUG] Resized image saved to {resized_image_path}")
         return resized_image_path
 
     except Exception as e:
-        print(f"[ERROR] Error processing image for profile {profile_id}: {e}")
         traceback.print_exc()
         return None
